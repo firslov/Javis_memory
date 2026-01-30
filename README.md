@@ -1,6 +1,6 @@
 <div align="center">
 
-  # Javis
+  # Javis Memory
 
   ### **带 RAG 记忆的个人 AI 助手系统**
 
