@@ -1,0 +1,114 @@
+# ============================================
+# Javis 配置文件示例
+# ============================================
+# 使用说明：
+# 1. 复制此文件为 servers.yaml: cp servers.example.yaml servers.yaml
+# 2. 修改下面的配置项，填入你的实际 API Key
+# 3. 确保不要将包含真实 API Key 的 servers.yaml 提交到代码仓库
+# ============================================
+
+# --- LLM 服务器配置 ---
+servers:
+  # OpenAI 配置示例
+  openai:
+    base_url: https://api.openai.com/v1
+    api_key: sk-your-openai-api-key-here
+    models:
+      - gpt-4o-mini
+      - gpt-4o
+
+  # DeepSeek 配置示例
+  deepseek:
+    base_url: https://api.deepseek.com/v1
+    api_key: sk-your-deepseek-api-key-here
+    models:
+      - deepseek-chat
+      - deepseek-reasoner
+
+  # 本地 Ollama 配置示例
+  local:
+    base_url: http://localhost:11434/v1
+    api_key: ollama  # Ollama 通常不需要真实 key
+    models:
+      - llama3
+      - qwen2
+
+# --- 记忆搜索配置 (RAG 向量检索) ---
+memory_search:
+  enabled: true              # 是否启用记忆系统
+  sources:
+    - memory                 # memory/ 目录
+    - sessions               # ~/.ai-agent/sessions/ 目录
+  extra_paths: []            # 额外的数据源路径
+
+  # Embedding 提供者配置
+  provider: openai           # 可选: "openai", "gemini", "local", "auto"
+  model: text-embedding-3-small  # OpenAI 嵌入模型
+  fallback: none             # 失败时的备选方案: "none", "local", "gemini"
+
+  # 远程 API 配置
+  remote:
+    api_key: sk-your-embedding-api-key-here  # 嵌入 API Key
+    base_url: https://api.openai.com         # 嵌入 API 地址
+    gemini_api_key: ""                        # Gemini API key (如需要)
+    batch:
+      enabled: true
+      wait: true
+      concurrency: 2
+      timeout_minutes: 60
+
+  # 本地向量化配置 (使用 sentence-transformers)
+  local:
+    model_path: ""          # 本地模型路径 (留空自动下载)
+    model_cache_dir: ""     # 模型缓存目录
+    device: cpu             # 运行设备: cpu, cuda, mps
+
+  # 存储配置
+  store:
+    path: "~/.javis/memory/{user_id}.sqlite"  # 索引数据库路径
+    vector:
+      enabled: true         # 是否启用向量索引
+      extension_path: ""    # sqlite-vec 扩展路径 (留空自动查找)
+
+  # 分块配置
+  chunking:
+    tokens: 400             # 每块 token 数
+    overlap: 80             # 重叠 token 数
+
+  # 同步配置
+  sync:
+    on_session_start: true  # 会话开始时同步
+    on_search: false        # 搜索时同步 (关闭以避免与文件监控冲突)
+    watch: true             # 监控文件变化
+    watch_debounce_ms: 1500 # 防抖延迟 (毫秒)
+    interval_minutes: 0     # 定期同步间隔 (0=禁用)
+
+  # 检索配置
+  query:
+    max_results: 6          # 最大结果数
+    min_score: 0.5          # 最小相关度分数 (余弦相似度)
+    hybrid:
+      enabled: true
+      vector_weight: 0.7    # 向量搜索权重
+      text_weight: 0.3      # 关键词搜索权重
+      candidate_multiplier: 4  # 候选倍数 (硬限制200)
+
+  # 缓存配置
+  cache:
+    enabled: true
+    max_entries: 10000      # 最大缓存条目数
+
+# --- 数据库配置 ---
+database:
+  url: sqlite+aiosqlite:///./javis.db  # SQLite 数据库路径
+  # PostgreSQL 示例:
+  # url: postgresql+asyncpg://user:password@localhost/javis
+
+# --- 响应缓存配置 ---
+cache:
+  enabled: true
+
+# --- 日志配置 ---
+logging:
+  level: INFO                  # 日志级别: DEBUG, INFO, WARNING, ERROR
+  slow_request_threshold: 5.0  # 慢请求阈值 (秒)
