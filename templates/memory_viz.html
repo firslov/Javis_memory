@@ -613,14 +613,9 @@
             </div>
             <div class="navbar-controls">
                 <select class="user-select" id="userSelect" onchange="loadData()">
-                    <option value="1">用户 1</option>
-                    <option value="2">用户 2</option>
-                    <option value="4">用户 4</option>
-                    <option value="6">用户 6</option>
-                    <option value="7">用户 7</option>
-                    <option value="8" selected>用户 8</option>
+                    <option value="" disabled selected>加载中...</option>
                 </select>
-                <button class="refresh-btn" onclick="loadData()">
+                <button class="refresh-btn" onclick="location.reload()">
                     <span>↻</span> 刷新
                 </button>
             </div>
@@ -979,8 +974,38 @@
             return div.innerHTML;
         }
 
+        // 加载用户列表
+        async function loadUsers() {
+            try {
+                const response = await fetch('/v1/memory/users');
+                const result = await response.json();
+                const users = result.users || [];
+
+                const select = document.getElementById('userSelect');
+                select.innerHTML = '';
+
+                if (users.length === 0) {
+                    select.innerHTML = '<option value="" disabled>没有用户</option>';
+                    return;
+                }
+
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `用户 ${user.id}${user.email ? ' (' + user.email + ')' : ''}`;
+                    select.appendChild(option);
+                });
+
+                // 加载第一个用户的数据
+                loadData();
+            } catch (error) {
+                console.error('Failed to load users:', error);
+                document.getElementById('userSelect').innerHTML = '<option value="" disabled>加载失败</option>';
+            }
+        }
+
         // 初始加载
-        loadData();
+        loadUsers();
     </script>
 </body>
 </html>

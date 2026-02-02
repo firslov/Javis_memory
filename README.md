@@ -299,6 +299,21 @@ curl -X POST "http://localhost:8000/v1/memory/promote?user_id=1"
 }
 ```
 
+#### 获取用户列表
+
+```bash
+curl "http://localhost:8000/v1/memory/users"
+```
+
+**响应示例：**
+```json
+{
+  "users": [
+    {"id": 1, "name": "default", "email": null}
+  ]
+}
+```
+
 ### Web 可视化仪表板
 
 访问 `http://localhost:8000/v1/memory/viz` 查看记忆系统可视化面板：
@@ -307,6 +322,8 @@ curl -X POST "http://localhost:8000/v1/memory/promote?user_id=1"
 - 重要性分布柱状图
 - Top 重要记忆列表
 - 最近访问记录
+
+> 用户列表从数据库动态获取，自动显示所有实际存在的用户。
 
 ---
 

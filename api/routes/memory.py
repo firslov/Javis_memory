@@ -4,11 +4,12 @@
 """
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from config.settings import get_settings
 from services.memory_index import MemoryIndexManager
 from api.routes.dependencies import get_or_create_memory_manager
 from pathlib import Path
+import aiosqlite
 
 from schemas.memory_search import (
     MemorySearchRequest,
@@ -33,6 +34,26 @@ async def memory_visualization_page():
     if template_path.exists():
         return FileResponse(template_path)
     return HTMLResponse("<h1>模板文件不存在</h1>")
+
+
+@router.get("/users")
+async def get_users():
+    """获取所有用户列表"""
+    settings = get_settings()
+    db_path = Path(settings.database.url.replace("sqlite+aiosqlite:///", ""))
+
+    if not db_path.exists():
+        return {"users": []}
+
+    try:
+        async with aiosqlite.connect(db_path) as db:
+            cursor = await db.execute("SELECT id, name, email FROM users ORDER BY id")
+            rows = await cursor.fetchall()
+            users = [{"id": row[0], "name": row[1], "email": row[2]} for row in rows]
+            return {"users": users}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch users: {str(e)}")
+
 
 @router.post("/search", response_model=MemorySearchResponse)
 async def search_memory(
