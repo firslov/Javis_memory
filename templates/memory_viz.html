@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Javis Memory Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* 颜色系统 - 专业深色主题 */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+
+            /* 文字颜色 */
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+
+            /* 强调色 */
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --accent-info: #06b6d4;
+
+            /* 边框和分割线 */
+            --border-color: #334155;
+            --divider-color: #1e293b;
+
+            /* 阴影 */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+            /* 间距 */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: var(--spacing-lg);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 顶部导航栏 */
+        .navbar {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: var(--spacing-md) var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .navbar-logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .navbar-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .navbar-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .navbar-controls {
+            display: flex;
+            gap: var(--spacing-md);
+            align-items: center;
+        }
+
+        .user-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .user-select:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .user-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* 网格布局 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: var(--spacing-lg);
+        }
+
+        /* 卡片基础样式 */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* 统计卡片 */
+        .stat-card {
+            grid-column: span 3;
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .stat-icon.primary {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+            color: var(--accent-primary);
+        }
+
+        .stat-icon.success {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(52, 211, 153, 0.2));
+            color: var(--accent-success);
+        }
+
+        .stat-icon.warning {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--accent-warning);
+        }
+
+        .stat-icon.info {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(34, 211, 238, 0.2));
+            color: var(--accent-info);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .stat-change {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .stat-change.positive {
+            color: var(--accent-success);
+        }
+
+        /* 层级卡片 */
+        .tier-cards {
+            grid-column: span 12;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-lg);
+        }
+
+        .tier-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: var(--spacing-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tier-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .tier-card.working::before {
+            background: linear-gradient(90deg, var(--accent-warning), #fbbf24);
+        }
+
+        .tier-card.long_term::before {
+            background: linear-gradient(90deg, var(--accent-success), #4ade80);
+        }
+
+        .tier-card.archive::before {
+            background: linear-gradient(90deg, var(--text-muted), #94a3b8);
+        }
+
+        .tier-icon {
+            font-size: 28px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .tier-name {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .tier-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .tier-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: var(--spacing-sm);
+        }
+
+        /* 图表卡片 */
+        .chart-card {
+            grid-column: span 6;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .chart-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: var(--spacing-md);
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+        }
+
+        .chart-container {
+            height: 200px;
+            position: relative;
+        }
+
+        /* 表格卡片 */
+        .table-card {
+            grid-column: span 12;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .table-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .table-count {
+            font-size: 12px;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: var(--spacing-md);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        td {
+            padding: var(--spacing-md);
+            font-size: 14px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--divider-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        /* 标签 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-working {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-long_term {
+            background: rgba(16, 185, 129, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-archive {
+            background: rgba(100, 116, 139, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+
+        /* 重要性分数 */
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .score-number {
+            font-weight: 600;
+            font-size: 14px;
+            min-width: 40px;
+        }
+
+        .score-number.high {
+            color: var(--accent-success);
+        }
+
+        .score-number.medium {
+            color: var(--accent-warning);
+        }
+
+        .score-number.low {
+            color: var(--accent-danger);
+        }
+
+        .score-bar {
+            width: 60px;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .score-fill.high {
+            background: var(--accent-success);
+        }
+
+        .score-fill.medium {
+            background: var(--accent-warning);
+        }
+
+        .score-fill.low {
+            background: var(--accent-danger);
+        }
+
+        /* 记忆ID */
+        .chunk-id {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 12px;
+            color: var(--accent-primary);
+            background: rgba(99, 102, 241, 0.1);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        /* 文本预览 */
+        .text-preview {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text-secondary);
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: var(--spacing-md);
+            opacity: 0.5;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .stat-card {
+                grid-column: span 6;
+            }
+            .chart-card {
+                grid-column: span 12;
+            }
+            .tier-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: var(--spacing-md);
+            }
+            .stat-card {
+                grid-column: span 12;
+            }
+            .navbar {
+                flex-direction: column;
+                gap: var(--spacing-md);
+            }
+            .tier-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* 动画 */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.05s; }
+        .stat-card:nth-child(2) { animation-delay: 0.1s; }
+        .stat-card:nth-child(3) { animation-delay: 0.15s; }
+        .stat-card:nth-child(4) { animation-delay: 0.2s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 导航栏 -->
+        <div class="navbar">
+            <div class="navbar-brand">
+                <div class="navbar-logo">🧠</div>
+                <div>
+                    <div class="navbar-title">Javis Memory System</div>
+                    <div class="navbar-subtitle">记忆可视化仪表板</div>
+                </div>
+            </div>
+            <div class="navbar-controls">
+                <select class="user-select" id="userSelect" onchange="loadData()">
+                    <option value="1">用户 1</option>
+                    <option value="2">用户 2</option>
+                    <option value="4">用户 4</option>
+                    <option value="6">用户 6</option>
+                    <option value="7">用户 7</option>
+                    <option value="8" selected>用户 8</option>
+                </select>
+                <button class="refresh-btn" onclick="loadData()">
+                    <span>↻</span> 刷新
+                </button>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- 统计卡片 -->
+            <div class="card stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">总记忆数</div>
+                        <div class="stat-value" id="totalChunks">-</div>
+                    </div>
+                    <div class="stat-icon primary">📊</div>
+                </div>
+                <div class="stat-change">所有存储的记忆</div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">平均重要性</div>
+                        <div class="stat-value" id="avgImportance">-</div>
+                    </div>
+                    <div class="stat-icon success">⭐</div>
+                </div>
+                <div class="stat-change">记忆质量评分</div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">总访问次数</div>
+                        <div class="stat-value" id="totalAccesses">-</div>
+                    </div>
+                    <div class="stat-icon warning">🔍</div>
+                </div>
+                <div class="stat-change">累计检索次数</div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">活跃记忆</div>
+                        <div class="stat-value" id="activeMemories">-</div>
+                    </div>
+                    <div class="stat-icon info">⚡</div>
+                </div>
+                <div class="stat-change">被访问过的记忆</div>
+            </div>
+
+            <!-- 层级卡片 -->
+            <div class="tier-cards">
+                <div class="tier-card working">
+                    <div class="tier-icon">⚡</div>
+                    <div class="tier-name">Working Memory</div>
+                    <div class="tier-value" id="workingCount">-</div>
+                    <div class="tier-desc">7天内待验证的新记忆</div>
+                </div>
+
+                <div class="tier-card long_term">
+                    <div class="tier-icon">⭐</div>
+                    <div class="tier-name">Long-term Memory</div>
+                    <div class="tier-value" id="longTermCount">-</div>
+                    <div class="tier-desc">高重要性永久保留</div>
+                </div>
+
+                <div class="tier-card archive">
+                    <div class="tier-icon">📦</div>
+                    <div class="tier-name">Archive</div>
+                    <div class="tier-value" id="archiveCount">-</div>
+                    <div class="tier-desc">低重要性压缩存储</div>
+                </div>
+            </div>
+
+            <!-- 重要性分布图 -->
+            <div class="card chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">重要性分布</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="importanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 层级分布图 -->
+            <div class="card chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">层级分布</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="tierChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top 重要记忆 -->
+            <div class="card table-card">
+                <div class="table-header">
+                    <div class="table-title">Top 10 重要记忆</div>
+                    <div class="table-count" id="topMemoriesCount">-</div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>记忆ID</th>
+                                <th>重要性</th>
+                                <th>层级</th>
+                                <th>访问</th>
+                                <th>内容预览</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topMemoriesTable">
+                            <tr><td colspan="5" class="loading">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 最近访问 -->
+            <div class="card table-card">
+                <div class="table-header">
+                    <div class="table-title">最近访问记录</div>
+                    <div class="table-count" id="recentAccessesCount">-</div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>记忆ID</th>
+                                <th>访问时间</th>
+                                <th>次数</th>
+                                <th>层级</th>
+                                <th>内容预览</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentAccessesTable">
+                            <tr><td colspan="5" class="loading">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let importanceChart = null;
+        let tierChart = null;
+
+        async function loadData() {
+            const userId = document.getElementById('userSelect').value;
+
+            try {
+                const response = await fetch(`/v1/memory/visualization?user_id=${userId}&limit=10`);
+                const data = await response.json();
+
+                updateStats(data);
+                updateTierCards(data);
+                updateCharts(data);
+                updateTables(data);
+            } catch (error) {
+                console.error('Failed to load data:', error);
+                showErrorState();
+            }
+        }
+
+        function showErrorState() {
+            document.getElementById('totalChunks').textContent = '—';
+            document.getElementById('avgImportance').textContent = '—';
+            document.getElementById('totalAccesses').textContent = '—';
+            document.getElementById('activeMemories').textContent = '—';
+            document.getElementById('workingCount').textContent = '—';
+            document.getElementById('longTermCount').textContent = '—';
+            document.getElementById('archiveCount').textContent = '—';
+        }
+
+        function updateStats(data) {
+            const overview = data.overview || {};
+            document.getElementById('totalChunks').textContent = overview.total_chunks || 0;
+            document.getElementById('avgImportance').textContent = (overview.avg_importance || 0).toFixed(2);
+            document.getElementById('totalAccesses').textContent = overview.total_accesses || 0;
+            document.getElementById('activeMemories').textContent = data.recent_accesses?.length || 0;
+        }
+
+        function updateTierCards(data) {
+            const tiers = data.tier_distribution || {};
+            document.getElementById('workingCount').textContent = tiers.working || 0;
+            document.getElementById('longTermCount').textContent = tiers.long_term || 0;
+            document.getElementById('archiveCount').textContent = tiers.archive || 0;
+        }
+
+        function updateCharts(data) {
+            const importanceDist = data.importance_distribution || {};
+            const tierDist = data.tier_distribution || {};
+
+            // 重要性分布图
+            const importanceCtx = document.getElementById('importanceChart').getContext('2d');
+            if (importanceChart) importanceChart.destroy();
+
+            const impLabels = Object.keys(importanceDist).map(k => {
+                if (k.includes('高')) return 'High (≥0.7)';
+                if (k.includes('中')) return 'Medium (0.4-0.7)';
+                if (k.includes('低')) return 'Low (<0.4)';
+                return k;
+            });
+
+            importanceChart = new Chart(importanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: impLabels,
+                    datasets: [{
+                        data: Object.values(importanceDist),
+                        backgroundColor: ['#10b981', '#f59e0b', '#64748b'],
+                        borderRadius: 6,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#334155' },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: '#f1f5f9',
+                                font: { size: 11, weight: 500 }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 层级分布图
+            const tierCtx = document.getElementById('tierChart').getContext('2d');
+            if (tierChart) tierChart.destroy();
+
+            tierChart = new Chart(tierCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Working', 'Long-term', 'Archive'],
+                    datasets: [{
+                        data: [tierDist.working || 0, tierDist.long_term || 0, tierDist.archive || 0],
+                        backgroundColor: ['#f59e0b', '#10b981', '#64748b'],
+                        borderWidth: 0,
+                        spacing: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: { size: 12 },
+                                color: '#f1f5f9',
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        return data.labels.map((label, i) => ({
+                                            text: `${label}: ${data.datasets[0].data[i]}`,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            hidden: false,
+                                            index: i
+                                        }));
+                                    }
+                                    return [];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTables(data) {
+            // Top 记忆表
+            const topTable = document.getElementById('topMemoriesTable');
+            const topMemories = data.top_memories || [];
+
+            document.getElementById('topMemoriesCount').textContent = `${topMemories.length} 条`;
+
+            if (topMemories.length === 0) {
+                topTable.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-icon">📭</div><div>暂无记忆数据</div></td></tr>';
+            } else {
+                topTable.innerHTML = topMemories.map(mem => {
+                    const scoreClass = mem.importance >= 0.7 ? 'high' : mem.importance >= 0.4 ? 'medium' : 'low';
+                    const scorePercent = Math.min(100, mem.importance * 100);
+
+                    return `
+                        <tr>
+                            <td><span class="chunk-id">${mem.chunk_id.substring(0, 16)}...</span></td>
+                            <td>
+                                <div class="score-display">
+                                    <span class="score-number ${scoreClass}">${mem.importance.toFixed(2)}</span>
+                                    <div class="score-bar">
+                                        <div class="score-fill ${scoreClass}" style="width: ${scorePercent}%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge badge-${mem.tier}">${getTierLabel(mem.tier)}</span></td>
+                            <td>${mem.access_count || 0}</td>
+                            <td><span class="text-preview">${escapeHtml(mem.text || '')}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // 最近访问表
+            const recentTable = document.getElementById('recentAccessesTable');
+            const recentAccesses = data.recent_accesses || [];
+
+            document.getElementById('recentAccessesCount').textContent = `${recentAccesses.length} 条`;
+
+            if (recentAccesses.length === 0) {
+                recentTable.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-icon">🔍</div><div>暂无访问记录</div></td></tr>';
+            } else {
+                recentTable.innerHTML = recentAccesses.map(acc => `
+                    <tr>
+                        <td><span class="chunk-id">${acc.chunk_id.substring(0, 16)}...</span></td>
+                        <td>${acc.time_ago || '未知'}</td>
+                        <td>${acc.access_count || 0}</td>
+                        <td><span class="badge badge-${acc.tier}">${getTierLabel(acc.tier)}</span></td>
+                        <td><span class="text-preview">${escapeHtml(acc.text || '')}</span></td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function getTierLabel(tier) {
+            const labels = {
+                'working': 'Working',
+                'long_term': 'Long-term',
+                'archive': 'Archive'
+            };
+            return labels[tier] || tier;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 初始加载
+        loadData();
+    </script>
+</body>
+</html>

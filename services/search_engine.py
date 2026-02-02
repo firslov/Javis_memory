@@ -140,7 +140,26 @@ class SearchEngine:
 
         # Filter by minimum score and limit results
         filtered = [r for r in combined if r.combined_score >= min_score]
-        return filtered[:max_results]
+        results = filtered[:max_results]
+
+        # ===== 新增：更新访问统计 =====
+        if results:
+            chunk_ids = [r.chunk_id for r in results]
+            placeholders = ','.join('?' * len(chunk_ids))
+            try:
+                await db_conn.execute(f"""
+                    UPDATE memory_chunks_meta
+                    SET access_count = access_count + 1,
+                        last_accessed_at = CURRENT_TIMESTAMP
+                    WHERE chunk_id IN ({placeholders})
+                      AND user_id = ?
+                """, (*chunk_ids, user_id))
+                await db_conn.commit()
+            except Exception as e:
+                # 如果表不存在或其他错误，不影响搜索结果
+                logger.debug(f"[SEARCH] Failed to update access stats: {e}")
+
+        return results
 
     async def _vector_search(
         self,

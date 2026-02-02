@@ -98,6 +98,33 @@ memory_search:
     enabled: true
     max_entries: 10000      # 最大缓存条目数
 
+  # 记忆生命周期管理配置 (三层记忆架构)
+  lifecycle:
+    enabled: true                    # 是否启用生命周期管理
+    working_memory_days: 7           # 工作记忆保留天数
+    long_term_threshold: 0.6         # 长期记忆重要性阈值
+    archive_threshold: 0.3           # 档案记忆重要性阈值
+    archive_after_days: 90           # 长期记忆归档天数
+    promotion_access_count: 5        # 提升为长期记忆的访问次数阈值
+
+    # 重要性评分配置
+    importance:
+      enabled: true
+      weights:
+        novelty: 0.25    # 新颖性权重 (与现有记忆的差异度)
+        sentiment: 0.15  # 情感强度权重 (关键词情感分析)
+        feedback: 0.30   # 用户反馈权重 (访问频率、显式反馈)
+        access: 0.20     # 访问频率权重
+        density: 0.10    # 信息密度权重 (实体数量、结构化程度)
+
+  # 记忆合并与去重配置
+  consolidation:
+    enabled: true                # 是否启用记忆合并
+    similarity_threshold: 0.85   # 相似度阈值 (高于此值会触发合并)
+    min_cluster_size: 3          # 最小簇大小 (至少多少条相似记忆才合并)
+    time_window_days: 7          # 时间窗口 (只合并最近N天的记忆)
+    schedule: "0 2 * * *"        # Cron表达式 (每天凌晨2点执行)
+
 # --- 数据库配置 ---
 database:
   url: sqlite+aiosqlite:///./javis.db  # SQLite 数据库路径

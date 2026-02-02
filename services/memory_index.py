@@ -212,6 +212,54 @@ class MemoryIndexManager:
             ON embedding_cache(updated_at)
         """)
 
+        # ===== 新增：记忆元数据表 =====
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS memory_chunks_meta (
+                chunk_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                importance_score REAL DEFAULT 0.5,
+                novelty_score REAL,
+                sentiment_score REAL,
+                feedback_score REAL,
+                access_count INTEGER DEFAULT 0,
+                last_accessed_at TIMESTAMP,
+                memory_tier TEXT DEFAULT 'working',
+                entities TEXT,
+                key_points TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (chunk_id, user_id)
+            )
+        """)
+
+        await self._db.execute("""
+            CREATE INDEX IF NOT EXISTS ix_memory_meta_tier
+            ON memory_chunks_meta(user_id, memory_tier)
+        """)
+
+        await self._db.execute("""
+            CREATE INDEX IF NOT EXISTS ix_memory_meta_importance
+            ON memory_chunks_meta(user_id, importance_score)
+        """)
+
+        await self._db.execute("""
+            CREATE INDEX IF NOT EXISTS ix_memory_meta_access
+            ON memory_chunks_meta(user_id, access_count, last_accessed_at)
+        """)
+
+        # ===== 新增：用户画像表 =====
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS user_memory_profiles (
+                user_id INTEGER PRIMARY KEY,
+                preferred_result_size INTEGER DEFAULT 6,
+                precision_preference REAL DEFAULT 0.5,
+                total_interactions INTEGER DEFAULT 0,
+                feedback_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         # Note: Vector table (memory_chunks_vec) is NOT created here
         # It will be created in _init_services() after we know the embedding dimension
 
@@ -489,6 +537,11 @@ class MemoryIndexManager:
             "DELETE FROM memory_chunks_vec WHERE user_id = ? AND id IN (SELECT id FROM memory_chunks WHERE user_id = ? AND path = ?)",
             (self.user_id, self.user_id, rel_path)
         )
+        # Delete from metadata table
+        await self._db.execute(
+            "DELETE FROM memory_chunks_meta WHERE user_id = ? AND chunk_id IN (SELECT id FROM memory_chunks WHERE user_id = ? AND path = ?)",
+            (self.user_id, self.user_id, rel_path)
+        )
         # Then delete from main table
         await self._db.execute(
             "DELETE FROM memory_chunks WHERE user_id = ? AND path = ?",
@@ -593,6 +646,55 @@ class MemoryIndexManager:
             INSERT OR REPLACE INTO memory_chunks_vec(id, user_id, embedding)
             VALUES (?, ?, ?)
         """, (chunk_id, self.user_id, embedding_bytes))
+
+        # ===== 新增：处理记忆生命周期 =====
+        if self.config.lifecycle.enabled:
+            await self._process_chunk_lifecycle(chunk_id, chunk.text, normalized_embedding)
+
+    async def _process_chunk_lifecycle(
+        self,
+        chunk_id: str,
+        chunk_text: str,
+        embedding: list,
+    ) -> None:
+        """处理新记忆块的生命周期管理
+
+        Args:
+            chunk_id: 记忆块ID
+            chunk_text: 记忆文本
+            embedding: 归一化的嵌入向量
+        """
+        from .memory_lifecycle import MemoryLifecycleManager
+
+        # 获取或创建生命周期管理器
+        if not hasattr(self, '_lifecycle_manager'):
+            self._lifecycle_manager = MemoryLifecycleManager(
+                db_conn=self._db,
+                user_id=self.user_id,
+                config=self.config.lifecycle,
+            )
+            # 获取LLM forwarder用于实体提取
+            llm_forwarder = None
+            try:
+                import sys
+                if 'api.main' in sys.modules:
+                    from api.main import app
+                    if hasattr(app.state, 'llm_forwarder'):
+                        llm_forwarder = app.state.llm_forwarder
+            except Exception:
+                pass
+
+            await self._lifecycle_manager.initialize(llm_forwarder)
+
+        # 处理记忆块
+        try:
+            await self._lifecycle_manager.process_new_chunk(
+                chunk_id=chunk_id,
+                chunk_text=chunk_text,
+                embedding=embedding,
+            )
+        except Exception as e:
+            logger.warning(f"[MEMORY] Failed to process lifecycle for {chunk_id[:8]}...: {e}")
 
     async def _get_cached_embedding(self, text_hash: str) -> Optional[List[float]]:
         """Get embedding from cache.

@@ -73,6 +73,9 @@ app.include_router(memory_router)
 # Global file watcher reference
 _file_watcher = None
 
+# Global task scheduler reference
+_task_scheduler = None
+
 # Logger
 logger = get_logger(__name__)
 
@@ -149,13 +152,44 @@ async def startup_event():
             logger.warning(f"[WATCH] File watcher failed to start: {e}")
             logger.warning("[WATCH] Memory auto-sync disabled, but manual sync still works")
 
+    # 5. Initialize task scheduler for memory lifecycle management
+    global _task_scheduler
+    if settings.memory_search.enabled:
+        lifecycle_enabled = settings.memory_search.lifecycle.enabled
+        consolidation_enabled = settings.memory_search.consolidation.enabled
+
+        if lifecycle_enabled or consolidation_enabled:
+            try:
+                from services.scheduler import MemoryTaskScheduler, set_scheduler
+
+                _task_scheduler = MemoryTaskScheduler(settings.memory_search)
+
+                # 定义获取管理器的函数
+                async def get_manager(user_id: int):
+                    return await _get_or_create_manager(user_id)
+
+                await _task_scheduler.start(get_manager)
+                set_scheduler(_task_scheduler)
+                logger.info("[SCHEDULER] Task scheduler started for memory lifecycle")
+            except Exception as e:
+                logger.warning(f"[SCHEDULER] Failed to start task scheduler: {e}")
+                logger.warning("[SCHEDULER] Automated lifecycle management disabled")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭时的清理"""
-    global _file_watcher
+    global _file_watcher, _task_scheduler
 
     logger.info("[SERVER] Shutting down...")
+
+    # Stop task scheduler
+    if _task_scheduler:
+        try:
+            await _task_scheduler.stop()
+            logger.info("[SCHEDULER] Task scheduler stopped")
+        except Exception as e:
+            logger.error(f"[SCHEDULER] Error stopping scheduler: {e}")
 
     # Stop file watchers
     await stop_all_file_watchers()
@@ -184,6 +218,23 @@ async def _sync_all_memories():
             logger.debug(f"[MEMORY] Auto-synced for user {user_id}")
         except Exception as e:
             logger.error(f"[MEMORY] Auto-sync failed for user {user_id}: {e}")
+
+
+async def _get_or_create_manager(user_id: int) -> MemoryIndexManager:
+    """Get or create a memory index manager for a user.
+
+    This helper function is used by the task scheduler to access managers.
+    """
+    from api.routes.dependencies import get_or_create_memory_manager
+
+    # 创建一个简单的请求对象用于依赖注入
+    class DummyRequest:
+        pass
+
+    dummy_request = DummyRequest()
+    dummy_request.app = app
+
+    return await get_or_create_memory_manager(dummy_request, user_id)
 
 
 @app.get("/")

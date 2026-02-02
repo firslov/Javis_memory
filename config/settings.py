@@ -99,6 +99,47 @@ class EmbeddingCacheConfig(BaseModel):
     max_entries: int = 10000
 
 
+# ============================================================================
+# Memory Lifecycle Configuration
+# ============================================================================
+
+class ImportanceWeightConfig(BaseModel):
+    """记忆重要性评分权重配置."""
+    novelty: float = 0.25
+    sentiment: float = 0.15
+    feedback: float = 0.30
+    access: float = 0.20
+    density: float = 0.10
+
+
+class MemoryImportanceConfig(BaseModel):
+    """记忆重要性评分配置."""
+    enabled: bool = True
+    weights: ImportanceWeightConfig = Field(default_factory=ImportanceWeightConfig)
+
+
+class MemoryLifecycleConfig(BaseModel):
+    """记忆生命周期管理配置."""
+    enabled: bool = True
+    working_memory_days: int = 7
+    long_term_threshold: float = 0.6
+    archive_threshold: float = 0.3
+    archive_after_days: int = 90
+    promotion_access_count: int = 5
+
+    # 重要性评分配置
+    importance: MemoryImportanceConfig = Field(default_factory=MemoryImportanceConfig)
+
+
+class MemoryConsolidationConfig(BaseModel):
+    """记忆合并配置."""
+    enabled: bool = True
+    similarity_threshold: float = 0.85
+    min_cluster_size: int = 3
+    time_window_days: int = 7
+    schedule: str = "0 2 * * *"  # cron表达式：每天凌晨2点
+
+
 class MemorySearchConfig(BaseModel):
     """RAG-based memory search configuration."""
     enabled: bool = True
@@ -129,6 +170,12 @@ class MemorySearchConfig(BaseModel):
 
     # Cache configuration
     cache: EmbeddingCacheConfig = Field(default_factory=EmbeddingCacheConfig)
+
+    # 记忆生命周期管理配置
+    lifecycle: MemoryLifecycleConfig = Field(default_factory=MemoryLifecycleConfig)
+
+    # 记忆合并配置
+    consolidation: MemoryConsolidationConfig = Field(default_factory=MemoryConsolidationConfig)
 
 
 class Settings(BaseModel):

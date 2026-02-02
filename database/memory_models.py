@@ -148,6 +148,75 @@ class MemoryIndexMeta(MemoryBase):
 
 
 # ============================================================================
+# Memory chunk metadata (importance scoring, lifecycle management)
+# ============================================================================
+
+class MemoryChunkMeta(MemoryBase):
+    """记忆块元数据 - 用于重要性评估和生命周期管理.
+
+    Stores:
+    - Importance scores (overall and per-dimension)
+    - Access statistics
+    - Memory tier (working/long_term/archive)
+    - Extracted entities and key points
+    """
+    __tablename__ = "memory_chunks_meta"
+
+    # 复合主键
+    chunk_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # 重要性评分
+    importance_score: Mapped[float] = mapped_column(Float, default=0.5)
+    novelty_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    sentiment_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    feedback_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # 访问统计
+    access_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_accessed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # 记忆层级
+    memory_tier: Mapped[str] = mapped_column(String(20), default="working")  # working/long_term/archive
+
+    # 提取的结构化信息
+    entities: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    key_points: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+
+    # 时间戳
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # 索引
+    __table_args__ = (
+        Index("ix_memory_meta_tier", "user_id", "memory_tier"),
+        Index("ix_memory_meta_importance", "user_id", "importance_score"),
+        Index("ix_memory_meta_access", "user_id", "access_count", "last_accessed_at"),
+    )
+
+
+class UserMemoryProfile(MemoryBase):
+    """用户记忆偏好画像.
+
+    Stores user preferences and statistics for memory system.
+    """
+    __tablename__ = "user_memory_profiles"
+
+    user_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # 偏好设置
+    preferred_result_size: Mapped[int] = mapped_column(Integer, default=6)
+    precision_preference: Mapped[float] = mapped_column(Float, default=0.5)
+
+    # 统计信息
+    total_interactions: Mapped[int] = mapped_column(Integer, default=0)
+    feedback_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# ============================================================================
 # Helper functions
 # ============================================================================
 
