@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap');
+      .text { font-family: 'Inter', sans-serif; fill: #1e293b; }
+      .title { font-size: 14px; font-weight: 600; }
+      .subtitle { font-size: 11px; font-weight: 500; fill: #64748b; }
+      .box { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1.5; rx: 8; }
+      .box-primary { fill: #eff6ff; stroke: #3b82f6; stroke-width: 1.5; rx: 8; }
+      .box-success { fill: #f0fdf4; stroke: #22c55e; stroke-width: 1.5; rx: 8; }
+      .box-warning { fill: #fffbeb; stroke: #f59e0b; stroke-width: 1.5; rx: 8; }
+      .box-purple { fill: #faf5ff; stroke: #a855f7; stroke-width: 1.5; rx: 8; }
+      .arrow { stroke: #94a3b8; stroke-width: 2; fill: none; }
+      .label { font-size: 10px; fill: #64748b; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#94a3b8" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="600" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" class="text title" font-size="18">Javis Memory 系统架构</text>
+
+  <!-- User Request -->
+  <rect x="350" y="50" width="200" height="40" class="box-primary"/>
+  <text x="450" y="75" text-anchor="middle" class="text title">用户请求</text>
+
+  <!-- Arrow down -->
+  <line x1="450" y1="90" x2="450" y2="120" class="arrow" marker-end="url(#arrowhead)"/>
+
+  <!-- API Layer Container -->
+  <rect x="50" y="120" width="800" height="180" class="box" stroke-dasharray="5,5"/>
+  <text x="70" y="140" class="text subtitle">API 层</text>
+
+  <!-- Chat API -->
+  <rect x="100" y="160" width="140" height="50" class="box"/>
+  <text x="170" y="182" text-anchor="middle" class="text title">对话 API</text>
+  <text x="170" y="198" text-anchor="middle" class="text subtitle">/v1/chat/completions</text>
+
+  <!-- Memory Search -->
+  <rect x="270" y="160" width="140" height="50" class="box"/>
+  <text x="340" y="182" text-anchor="middle" class="text title">记忆搜索</text>
+  <text x="340" y="198" text-anchor="middle" class="text subtitle">Hybrid Search</text>
+
+  <!-- LLM Proxy -->
+  <rect x="440" y="160" width="140" height="50" class="box"/>
+  <text x="510" y="182" text-anchor="middle" class="text title">LLM 代理</text>
+  <text x="510" y="198" text-anchor="middle" class="text subtitle">负载均衡</text>
+
+  <!-- Conversation Save -->
+  <rect x="100" y="230" width="140" height="50" class="box"/>
+  <text x="170" y="252" text-anchor="middle" class="text title">对话保存</text>
+  <text x="170" y="268" text-anchor="middle" class="text subtitle">Auto-save</text>
+
+  <!-- Search Engine -->
+  <rect x="270" y="230" width="140" height="50" class="box"/>
+  <text x="340" y="252" text-anchor="middle" class="text title">混合搜索引擎</text>
+  <text x="340" y="268" text-anchor="middle" class="text subtitle">Vector + Keyword</text>
+
+  <!-- Multi-server -->
+  <rect x="440" y="230" width="140" height="50" class="box"/>
+  <text x="510" y="252" text-anchor="middle" class="text title">多服务器</text>
+  <text x="510" y="268" text-anchor="middle" class="text subtitle">Round-robin</text>
+
+  <!-- Arrows within API layer -->
+  <line x1="240" y1="185" x2="270" y2="185" class="arrow" marker-end="url(#arrowhead)"/>
+  <line x1="410" y1="185" x2="440" y2="185" class="arrow" marker-end="url(#arrowhead)"/>
+  <line x1="170" y1="210" x2="170" y2="230" class="arrow" marker-end="url(#arrowhead)"/>
+  <line x1="340" y1="210" x2="340" y2="230" class="arrow" marker-end="url(#arrowhead)"/>
+  <line x1="510" y1="210" x2="510" y2="230" class="arrow" marker-end="url(#arrowhead)"/>
+
+  <!-- Arrow down to lifecycle -->
+  <line x1="340" y1="280" x2="340" y2="320" class="arrow" marker-end="url(#arrowhead)"/>
+  <line x1="170" y1="280" x2="170" y2="300" class="arrow"/>
+  <line x1="170" y1="300" x2="340" y2="300" class="arrow"/>
+  <line x1="340" y1="300" x2="340" y2="320" class="arrow" marker-end="url(#arrowhead)"/>
+
+  <!-- Lifecycle Container -->
+  <rect x="50" y="320" width="800" height="140" class="box" stroke-dasharray="5,5"/>
+  <text x="70" y="340" class="text subtitle">记忆生命周期管理</text>
+
+  <!-- Importance Scoring -->
+  <rect x="100" y="360" width="130" height="40" class="box-warning"/>
+  <text x="165" y="385" text-anchor="middle" class="text title">重要性评分</text>
+
+  <!-- Three-tier -->
+  <rect x="250" y="360" width="130" height="40" class="box-warning"/>
+  <text x="315" y="385" text-anchor="middle" class="text title">三层分层</text>
+
+  <!-- Consolidation -->
+  <rect x="400" y="360" width="130" height="40" class="box-warning"/>
+  <text x="465" y="385" text-anchor="middle" class="text title">智能合并</text>
+
+  <!-- Lifecycle details -->
+  <rect x="100" y="410" width="430" height="35" class="box"/>
+  <text x="315" y="432" text-anchor="middle" class="text subtitle">工作记忆 (7天) → 长期记忆 (≥0.6) → 档案记忆 (&lt;0.3)</text>
+
+  <!-- Arrows within lifecycle -->
+  <line x1="230" y1="380" x2="250" y2="380" class="arrow" marker-end="url(#arrowhead)"/>
+  <line x1="380" y1="380" x2="400" y2="380" class="arrow" marker-end="url(#arrowhead)"/>
+
+  <!-- Arrow down to database -->
+  <line x1="315" y1="445" x2="315" y2="480" class="arrow" marker-end="url(#arrowhead)"/>
+
+  <!-- Database -->
+  <rect x="100" y="480" width="430" height="80" class="box-success"/>
+  <text x="315" y="505" text-anchor="middle" class="text title">SQLite + sqlite-vec</text>
+  <text x="315" y="525" text-anchor="middle" class="text subtitle">向量索引 + 全文索引 + 元数据表</text>
+  <text x="315" y="545" text-anchor="middle" class="text subtitle">memory_chunks / memory_chunks_vec / memory_chunks_meta</text>
+
+  <!-- Legend -->
+  <rect x="600" y="360" width="230" height="200" class="box"/>
+  <text x="715" y="385" text-anchor="middle" class="text title">图例</text>
+
+  <rect x="620" y="400" width="20" height="15" class="box-primary"/>
+  <text x="650" y="412" class="text subtitle">用户交互</text>
+
+  <rect x="620" y="425" width="20" height="15" class="box"/>
+  <text x="650" y="437" class="text subtitle">API/服务</text>
+
+  <rect x="620" y="450" width="20" height="15" class="box-warning"/>
+  <text x="650" y="462" class="text subtitle">生命周期管理</text>
+
+  <rect x="620" y="475" width="20" height="15" class="box-success"/>
+  <text x="650" y="487" class="text subtitle">数据存储</text>
+
+  <line x1="620" y1="510" x2="640" y2="510" class="arrow" marker-end="url(#arrowhead)"/>
+  <text x="650" y="513" class="text subtitle">数据流向</text>
+</svg>
