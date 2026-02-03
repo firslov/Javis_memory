@@ -262,6 +262,9 @@ class MemoryImportanceScorer:
     ) -> None:
         """保存评分到数据库
 
+        使用 UPSERT (INSERT ... ON CONFLICT) 确保不会覆盖已存在的
+        access_count 和 last_accessed_at 字段。
+
         Args:
             chunk_id: 记忆块ID
             user_id: 用户ID
@@ -271,14 +274,23 @@ class MemoryImportanceScorer:
         """
         tier = self._determine_tier(scores.overall)
 
+        # 使用 UPSERT 语法，避免覆盖 access_count 和 last_accessed_at
         await self.db.execute("""
-            INSERT OR REPLACE INTO memory_chunks_meta
+            INSERT INTO memory_chunks_meta
             (chunk_id, user_id, importance_score, novelty_score, sentiment_score,
              feedback_score, access_count, last_accessed_at, memory_tier,
-             entities, key_points, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, COALESCE((SELECT access_count FROM memory_chunks_meta WHERE chunk_id = ? AND user_id = ?), 0),
-                COALESCE((SELECT last_accessed_at FROM memory_chunks_meta WHERE chunk_id = ? AND user_id = ?), NULL),
-                ?, ?, ?, CURRENT_TIMESTAMP)
+             entities, key_points, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(chunk_id, user_id) DO UPDATE SET
+                importance_score = excluded.importance_score,
+                novelty_score = excluded.novelty_score,
+                sentiment_score = excluded.sentiment_score,
+                feedback_score = excluded.feedback_score,
+                memory_tier = excluded.memory_tier,
+                entities = excluded.entities,
+                key_points = excluded.key_points,
+                -- 保留现有的 access_count 和 last_accessed_at
+                updated_at = CURRENT_TIMESTAMP
         """, (
             chunk_id,
             user_id,
@@ -286,8 +298,6 @@ class MemoryImportanceScorer:
             scores.novelty,
             scores.sentiment,
             scores.feedback,
-            chunk_id, user_id,  # For subquery
-            chunk_id, user_id,  # For subquery
             tier,
             json.dumps(entities) if entities else None,
             json.dumps(key_points) if key_points else None,

@@ -531,15 +531,21 @@ class MemoryIndexManager:
             logger.warning(f"[MEMORY] No chunks generated for {file_path}")
             return stats
 
+        # Get existing chunk IDs for this file before deletion
+        cursor = await self._db.execute(
+            "SELECT id FROM memory_chunks WHERE user_id = ? AND path = ?",
+            (self.user_id, rel_path)
+        )
+        existing_chunk_ids = set(row[0] for row in await cursor.fetchall())
+        await cursor.close()
+
         # Remove old chunks for this file (both main table and vector index)
+        # 注意：我们只删除 chunk 和 vector 记录，不删除 meta 记录
+        # 这样可以保留访问统计信息。当 chunk_id 相同时，meta 记录会被保留
+
         # First, get the IDs to delete from vector index
         await self._db.execute(
             "DELETE FROM memory_chunks_vec WHERE user_id = ? AND id IN (SELECT id FROM memory_chunks WHERE user_id = ? AND path = ?)",
-            (self.user_id, self.user_id, rel_path)
-        )
-        # Delete from metadata table
-        await self._db.execute(
-            "DELETE FROM memory_chunks_meta WHERE user_id = ? AND chunk_id IN (SELECT id FROM memory_chunks WHERE user_id = ? AND path = ?)",
             (self.user_id, self.user_id, rel_path)
         )
         # Then delete from main table
@@ -553,6 +559,24 @@ class MemoryIndexManager:
         deleted = await cursor.fetchone()
         await cursor.close()
         stats["chunks_removed"] = deleted[0] if deleted else 0
+
+        # Clean up orphaned meta records (chunk IDs that no longer exist)
+        # 这种情况发生在文本内容变化，导致 chunk 的 hash 变化时
+        if existing_chunk_ids:
+            # 获取该文件当前应该存在的所有 chunk_id
+            new_chunks = self.chunker.chunk_file(file_path)
+            new_chunk_ids = set(f"{self.user_id}:{chunk.hash}" for chunk in new_chunks)
+
+            # 找出被删除的 chunk_id（旧的 chunk_id 不在新的 chunk_id 列表中）
+            orphaned_ids = existing_chunk_ids - new_chunk_ids
+
+            if orphaned_ids:
+                placeholders = ','.join('?' * len(orphaned_ids))
+                await self._db.execute(
+                    f"DELETE FROM memory_chunks_meta WHERE user_id = ? AND chunk_id IN ({placeholders})",
+                    (self.user_id, *orphaned_ids)
+                )
+                logger.debug(f"[MEMORY] Cleaned up {len(orphaned_ids)} orphaned meta records for {rel_path}")
 
         # Embed chunks and insert
         for chunk in chunks:

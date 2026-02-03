@@ -144,20 +144,24 @@ class SearchEngine:
 
         # ===== 新增：更新访问统计 =====
         if results:
-            chunk_ids = [r.chunk_id for r in results]
-            placeholders = ','.join('?' * len(chunk_ids))
             try:
-                await db_conn.execute(f"""
-                    UPDATE memory_chunks_meta
-                    SET access_count = access_count + 1,
-                        last_accessed_at = CURRENT_TIMESTAMP
-                    WHERE chunk_id IN ({placeholders})
-                      AND user_id = ?
-                """, (*chunk_ids, user_id))
+                # 使用 UPSERT 语法确保记录存在时更新，不存在时创建
+                # 这比 UPDATE 更安全，因为即使 meta 记录尚未创建也能正常工作
+                for result in results:
+                    await db_conn.execute("""
+                        INSERT INTO memory_chunks_meta
+                        (chunk_id, user_id, access_count, last_accessed_at, memory_tier, created_at, updated_at)
+                        VALUES (?, ?, 1, CURRENT_TIMESTAMP, 'working', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        ON CONFLICT(chunk_id, user_id) DO UPDATE SET
+                            access_count = access_count + 1,
+                            last_accessed_at = CURRENT_TIMESTAMP,
+                            updated_at = CURRENT_TIMESTAMP
+                    """, (result.chunk_id, user_id))
                 await db_conn.commit()
+                logger.debug(f"[SEARCH] Updated access stats for {len(results)} chunks")
             except Exception as e:
                 # 如果表不存在或其他错误，不影响搜索结果
-                logger.debug(f"[SEARCH] Failed to update access stats: {e}")
+                logger.warning(f"[SEARCH] Failed to update access stats: {e}")
 
         return results
 

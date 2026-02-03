@@ -55,13 +55,14 @@ class MemoryConsolidator:
         """
         cutoff_date = datetime.now() - time_window
 
-        # 获取候选记忆
+        # 获取候选记忆 - 只处理未合并的记忆
         cursor = await self.db.execute("""
-            SELECT c.id, c.text, c.hash, m.importance_score, m.created_at
+            SELECT c.id, c.text, m.importance_score, m.created_at
             FROM memory_chunks c
-            LEFT JOIN memory_chunks_meta m ON c.id = m.chunk_id AND c.user_id = m.user_id
+            INNER JOIN memory_chunks_meta m ON c.id = m.chunk_id AND c.user_id = m.user_id
             WHERE c.user_id = ?
-              AND c.created_at > ?
+              AND m.created_at > ?
+              AND m.memory_tier != 'consolidated'
             ORDER BY c.created_at DESC
         """, (self.user_id, cutoff_date.isoformat()))
 
@@ -73,7 +74,7 @@ class MemoryConsolidator:
         processed = set()
 
         for row in rows:
-            chunk_id, text, hash_val, importance, created_at = row
+            chunk_id, text, importance, created_at = row
 
             if chunk_id in processed:
                 continue
@@ -101,13 +102,16 @@ class MemoryConsolidator:
         processed: set,
         threshold: float,
     ) -> List[Dict]:
-        """找到与给定chunk相似的其他chunk"""
+        """找到与给定chunk相似的其他chunk
+
+        使用向量相似度进行高效查找
+        """
         similar = []
 
         # 获取当前chunk的向量
         cursor = await self.db.execute("""
-            SELECT embedding FROM memory_chunks_vec WHERE id = ?
-        """, (chunk_id,))
+            SELECT embedding FROM memory_chunks_vec WHERE id = ? AND user_id = ?
+        """, (chunk_id, self.user_id))
 
         row = await cursor.fetchone()
         await cursor.close()
@@ -126,8 +130,8 @@ class MemoryConsolidator:
 
             # 获取其他chunk的向量
             cursor = await self.db.execute("""
-                SELECT embedding FROM memory_chunks_vec WHERE id = ?
-            """, (other_id,))
+                SELECT embedding FROM memory_chunks_vec WHERE id = ? AND user_id = ?
+            """, (other_id, self.user_id))
 
             vec_row = await cursor.fetchone()
             await cursor.close()
@@ -146,7 +150,7 @@ class MemoryConsolidator:
                 similar.append(dict(
                     chunk_id=other_id,
                     text=other_row[1],
-                    importance=other_row[3] or 0.5,
+                    importance=other_row[2] or 0.5,
                 ))
                 processed.add(other_id)
 
